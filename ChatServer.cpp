@@ -174,7 +174,7 @@ void* comm_thr(void* arg)
 			{
 				if(*it != pci)  // 不向消息发送者转发消息
 				{
-					write((*it)->sock_conn, msg, ret);
+					write((*it)->sock_conn, msg, ret+1);
 				}
 			}
 

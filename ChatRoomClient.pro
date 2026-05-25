@@ -18,15 +18,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     main.cpp \
     chatdialog.cpp \
-    logindialog.cpp
+    logindialog.cpp \
+    registerdialog.cpp
 
 HEADERS += \
     chatdialog.h \
-    logindialog.h
+    logindialog.h \
+    registerdialog.h
 
 FORMS += \
     chatdialog.ui \
-    logindialog.ui
+    logindialog.ui \
+    registerdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -34,6 +37,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 
+win32: RC_ICONS = favicon.ico
 
 DISTFILES += \
-    tupian.ico
+    favicon.ico

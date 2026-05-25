@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>LoginDialog</class>
- <widget class="QDialog" name="LoginDialog">
+ <class>RegisterDialog</class>
+ <widget class="QDialog" name="RegisterDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>560</width>
-    <height>620</height>
+    <height>680</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>440</width>
-    <height>500</height>
+    <height>560</height>
    </size>
   </property>
   <property name="windowTitle">
-   <string>聊天室 - 登录</string>
+   <string>聊天室 - 注册</string>
   </property>
   <property name="styleSheet">
    <string notr="true">QDialog {
@@ -52,7 +52,7 @@ QLineEdit:focus {
 QLineEdit::placeholder {
     color: #aaaaaa;
 }
-QPushButton#btnLogin {
+QPushButton#btnRegister {
     background-color: #4a90d9;
     color: #ffffff;
     border: none;
@@ -61,25 +61,27 @@ QPushButton#btnLogin {
     font-size: 18px;
     font-weight: bold;
 }
-QPushButton#btnLogin:hover {
+QPushButton#btnRegister:hover {
     background-color: #3a7bc8;
 }
-QPushButton#btnLogin:pressed {
+QPushButton#btnRegister:pressed {
     background-color: #2e6ab5;
 }
-QPushButton#btnLogin:disabled {
+QPushButton#btnRegister:disabled {
     background-color: #b0c4de;
     color: #e0e0e0;
 }
-QPushButton#btnGoRegister {
-    border: none;
-    color: #4a90d9;
-    font-size: 15px;
-    background-color: transparent;
+QPushButton#btnBack {
+    background-color: #f0f0f0;
+    color: #666666;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 16px;
 }
-QPushButton#btnGoRegister:hover {
-    color: #3a7bc8;
-    text-decoration: underline;
+QPushButton#btnBack:hover {
+    background-color: #e4e4e4;
+    border: 2px solid #cccccc;
 }</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -101,7 +103,7 @@ QPushButton#btnGoRegister:hover {
    <item>
     <widget class="QLabel" name="lblTitle">
      <property name="text">
-      <string>欢迎回来</string>
+      <string>创建账号</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -127,7 +129,7 @@ QPushButton#btnGoRegister:hover {
    <item>
     <widget class="QLabel" name="lblSubtitle">
      <property name="text">
-      <string>登录你的聊天室账号</string>
+      <string>注册一个新的聊天室账号</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -145,7 +147,7 @@ QPushButton#btnGoRegister:hover {
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>36</height>
       </size>
      </property>
     </spacer>
@@ -153,7 +155,7 @@ QPushButton#btnGoRegister:hover {
    <item>
     <layout class="QVBoxLayout" name="formLayout">
      <property name="spacing">
-      <number>20</number>
+      <number>18</number>
      </property>
      <item>
       <widget class="QLineEdit" name="edtUsername">
@@ -180,7 +182,26 @@ QPushButton#btnGoRegister:hover {
         <enum>QLineEdit::Password</enum>
        </property>
        <property name="placeholderText">
-        <string>🔒  密码</string>
+        <string>🔒  密码（至少4位）</string>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>52</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edtConfirm">
+       <property name="maxLength">
+        <number>30</number>
+       </property>
+       <property name="echoMode">
+        <enum>QLineEdit::Password</enum>
+       </property>
+       <property name="placeholderText">
+        <string>🔒  确认密码</string>
        </property>
        <property name="minimumSize">
         <size>
@@ -209,7 +230,7 @@ QPushButton#btnGoRegister:hover {
     </spacer>
    </item>
    <item>
-    <widget class="QPushButton" name="btnLogin">
+    <widget class="QPushButton" name="btnRegister">
      <property name="minimumSize">
       <size>
        <width>0</width>
@@ -220,12 +241,12 @@ QPushButton#btnGoRegister:hover {
       <cursorShape>PointingHandCursor</cursorShape>
      </property>
      <property name="text">
-      <string>登 录</string>
+      <string>注 册</string>
      </property>
     </widget>
    </item>
    <item>
-    <spacer name="spacerReg">
+    <spacer name="spacerBack">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
@@ -235,27 +256,24 @@ QPushButton#btnGoRegister:hover {
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>18</height>
+       <height>12</height>
       </size>
      </property>
     </spacer>
    </item>
    <item>
-    <widget class="QPushButton" name="btnGoRegister">
+    <widget class="QPushButton" name="btnBack">
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>30</height>
+       <height>48</height>
       </size>
      </property>
      <property name="cursor">
       <cursorShape>PointingHandCursor</cursorShape>
      </property>
      <property name="text">
-      <string>还没有账号？立即注册</string>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
+      <string>← 返回登录</string>
      </property>
     </widget>
    </item>

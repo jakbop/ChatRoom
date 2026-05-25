@@ -10,12 +10,16 @@ ChatDialog::ChatDialog(QTcpSocket *socket, const QString &username, QWidget *par
     ui->setupUi(this);
 
     setWindowTitle("聊天室 - " + m_username);
+    ui->lblHeader->setText("💬 聊天室 - " + m_username);
 
     m_socket->setParent(this);
 
     connect(m_socket, &QTcpSocket::readyRead, this, &ChatDialog::onReadyRead);
 
-    ui->edtRecord->append("<font color='red'>[系统消息] 欢迎进入聊天室！</font><br>");
+    ui->edtRecord->append(
+        "<div style='text-align:center; color:#999; font-size:15px; padding:10px;'>"
+        "—— 欢迎进入聊天室 ——</div>"
+    );
 }
 
 ChatDialog::~ChatDialog()
@@ -36,7 +40,12 @@ void ChatDialog::on_btnSend_clicked()
         QString fullMsg = "CHAT:" + msg;
         m_socket->write(fullMsg.toUtf8() + '\0');
 
-        ui->edtRecord->append("<font color='blue'>[" + m_username + "] " + msg + "</font><br>");
+        ui->edtRecord->append(
+            "<div style='margin:6px 0; font-size:17px;'>"
+            "<span style='color:#4a90d9; font-weight:bold;'>[" + m_username + "]</span> "
+            "<span style='color:#333333;'>" + msg.toHtmlEscaped() + "</span>"
+            "</div>"
+        );
     }
 
     ui->edtMsg->clear();
@@ -63,16 +72,26 @@ void ChatDialog::onReadyRead()
             {
                 QString sender = content.left(sep);
                 QString message = content.mid(sep + 1);
-                ui->edtRecord->append("<font color='green'>[" + sender + "] " + message + "</font><br>");
+                ui->edtRecord->append(
+                    "<div style='margin:6px 0; font-size:17px;'>"
+                    "<span style='color:#27ae60; font-weight:bold;'>[" + sender + "]</span> "
+                    "<span style='color:#333333;'>" + message.toHtmlEscaped() + "</span>"
+                    "</div>"
+                );
             }
         }
         else if (text.startsWith("SYSTEM:"))
         {
-            ui->edtRecord->append("<font color='red'>[系统消息] " + text.mid(7) + "</font><br>");
+            ui->edtRecord->append(
+                "<div style='text-align:center; color:#999; font-size:15px; padding:10px;'>"
+                "—— " + text.mid(7) + " ——</div>"
+            );
         }
         else
         {
-            ui->edtRecord->append("<font color='green'>" + text + "</font><br>");
+            ui->edtRecord->append(
+                "<div style='margin:6px 0; font-size:17px; color:#333333;'>" + text.toHtmlEscaped() + "</div>"
+            );
         }
     }
 }

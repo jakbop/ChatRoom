@@ -6,49 +6,146 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>828</width>
-    <height>690</height>
+    <width>820</width>
+    <height>680</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>聊天室-By:Ww~</string>
+  <property name="minimumSize">
+   <size>
+    <width>600</width>
+    <height>500</height>
+   </size>
   </property>
-  <widget class="QPlainTextEdit" name="edtMsg">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>576</y>
-     <width>661</width>
-     <height>91</height>
-    </rect>
+  <property name="windowTitle">
+   <string>聊天室</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QDialog {
+    background-color: #f5f6fa;
+}
+QLabel#lblHeader {
+    color: #2c3e50;
+    font-size: 22px;
+    font-weight: bold;
+    padding: 14px 20px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+}
+QTextEdit#edtRecord {
+    border: none;
+    background-color: #ffffff;
+    font-size: 17px;
+    padding: 14px 20px;
+}
+QPlainTextEdit#edtMsg {
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    background-color: #ffffff;
+    font-size: 17px;
+    padding: 10px 14px;
+    selection-background-color: #4a90d9;
+}
+QPlainTextEdit#edtMsg:focus {
+    border: 2px solid #4a90d9;
+}
+QPushButton#btnSend {
+    background-color: #4a90d9;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px 24px;
+}
+QPushButton#btnSend:hover {
+    background-color: #3a7bc8;
+}
+QPushButton#btnSend:pressed {
+    background-color: #2e6ab5;
+}</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="spacing">
+    <number>0</number>
    </property>
-  </widget>
-  <widget class="QTextEdit" name="edtRecord">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>10</y>
-     <width>791</width>
-     <height>541</height>
-    </rect>
+   <property name="leftMargin">
+    <number>0</number>
    </property>
-   <property name="readOnly">
-    <bool>true</bool>
+   <property name="topMargin">
+    <number>0</number>
    </property>
-  </widget>
-  <widget class="QPushButton" name="btnSend">
-   <property name="geometry">
-    <rect>
-     <x>690</x>
-     <y>575</y>
-     <width>121</width>
-     <height>91</height>
-    </rect>
+   <property name="rightMargin">
+    <number>0</number>
    </property>
-   <property name="text">
-    <string>发 送</string>
+   <property name="bottomMargin">
+    <number>0</number>
    </property>
-  </widget>
+   <item>
+    <widget class="QLabel" name="lblHeader">
+     <property name="text">
+      <string>💬 聊天室</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTextEdit" name="edtRecord">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="inputLayout">
+     <property name="spacing">
+      <number>12</number>
+     </property>
+     <property name="leftMargin">
+      <number>14</number>
+     </property>
+     <property name="topMargin">
+      <number>12</number>
+     </property>
+     <property name="rightMargin">
+      <number>14</number>
+     </property>
+     <property name="bottomMargin">
+      <number>14</number>
+     </property>
+     <item>
+      <widget class="QPlainTextEdit" name="edtMsg">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>90</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnSend">
+       <property name="minimumSize">
+        <size>
+         <width>110</width>
+         <height>65</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>130</width>
+         <height>90</height>
+        </size>
+       </property>
+       <property name="cursor">
+        <cursorShape>PointingHandCursor</cursorShape>
+       </property>
+       <property name="text">
+        <string>发 送</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

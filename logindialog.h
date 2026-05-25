@@ -21,7 +21,7 @@ public:
 
 private slots:
     void on_btnLogin_clicked();
-    void on_btnRegister_clicked();
+    void on_btnGoRegister_clicked();
     void onConnected();
     void onReadyRead();
     void onError(QAbstractSocket::SocketError socketError);
@@ -29,7 +29,7 @@ private slots:
 private:
     void setStatus(const QString &text);
     void connectToServer();
-    void sendRequest(const QString &type);
+    void sendLoginRequest();
 
     Ui::LoginDialog *ui;
     QTcpSocket *m_socket;

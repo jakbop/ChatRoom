@@ -13,16 +13,17 @@ class ChatDialog : public QDialog
     Q_OBJECT
 
 public:
-    ChatDialog(QWidget *parent = nullptr);
+    ChatDialog(QTcpSocket *socket, const QString &username, QWidget *parent = nullptr);
     ~ChatDialog();
 
 private slots:
     void on_btnSend_clicked();
-    void onConnected();
     void onReadyRead();
 
 private:
     Ui::ChatDialog *ui;
-    QTcpSocket sock;
+    QTcpSocket *m_socket;
+    QString m_username;
+    QByteArray m_buffer;
 };
 #endif // CHATDIALOG_H

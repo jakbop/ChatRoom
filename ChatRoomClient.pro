@@ -17,13 +17,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     main.cpp \
-    chatdialog.cpp
+    chatdialog.cpp \
+    logindialog.cpp
 
 HEADERS += \
-    chatdialog.h
+    chatdialog.h \
+    logindialog.h
 
 FORMS += \
-    chatdialog.ui
+    chatdialog.ui \
+    logindialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

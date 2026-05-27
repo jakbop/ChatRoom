@@ -25,22 +25,22 @@
 }
 QLabel#lblTitle {
     color: #1a1a2e;
-    font-size: 32px;
+    font-size: 36px;
     font-weight: bold;
 }
 QLabel#lblSubtitle {
     color: #888888;
-    font-size: 16px;
+    font-size: 18px;
 }
 QLabel#lblStatus {
     color: #e74c3c;
-    font-size: 14px;
+    font-size: 16px;
 }
 QLineEdit {
     border: 2px solid #e0e0e0;
     border-radius: 10px;
     padding: 12px 18px;
-    font-size: 17px;
+    font-size: 19px;
     background-color: #f8f9fa;
     color: #333333;
     selection-background-color: #4a90d9;
@@ -58,7 +58,7 @@ QPushButton#btnLogin {
     border: none;
     border-radius: 10px;
     padding: 14px;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
 }
 QPushButton#btnLogin:hover {
@@ -74,7 +74,7 @@ QPushButton#btnLogin:disabled {
 QPushButton#btnGoRegister {
     border: none;
     color: #4a90d9;
-    font-size: 15px;
+    font-size: 17px;
     background-color: transparent;
 }
 QPushButton#btnGoRegister:hover {

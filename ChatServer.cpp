@@ -49,12 +49,21 @@
 /* ========================= 第三方库头文件 ========================= */
 #include "sqlite3.h"     // SQLite3 数据库 C API
 #include "sha256.h"      // SHA-256 哈希算法（本项目自行实现）
+#include "deepseek.h"    // DeepSeek AI API 调用模块
 
 /* ========================= 宏定义 ========================= */
 #define PORT 9413        // 服务器监听端口号
 #define MAX_MSG 4096     // 单条消息最大长度（字节）
 #define SALT_LEN 32      // 密码盐值长度（字符数）
 #define HASH_LEN 65      // SHA-256 哈希值长度（64个十六进制字符 + 1个'\0'）
+#define AI_RESP_MAX 2048 // AI 回复最大长度（字节）
+
+/*
+ * DeepSeek API Key
+ * 请替换为你自己的 API Key（从 https://platform.deepseek.com/ 获取）
+ * 安全建议：生产环境应从环境变量或配置文件读取，不要硬编码
+ */
+#define DEEPSEEK_API_KEY "sk-febfdc9829ab4544b645e78efcce13b8"
 
 /* ========================= 客户端信息结构体 ========================= */
 // 每个连接到服务器的客户端都会分配一个此结构体，
@@ -109,6 +118,17 @@ void send_to_client(int sock, const char *msg);
 
 // 向所有已登录的在线客户端广播系统消息（可排除指定客户端）
 void broadcast_system(const char *msg, client_info_t *exclude);
+
+// AI 请求参数结构体（传递给 AI 线程）
+typedef struct {
+    char question[MAX_MSG];     // 用户提问内容
+    char username[50];          // 提问者用户名
+    int  sock_conn;             // 提问者的 socket（私聊回复用）
+    int  is_private;            // 0=公聊（广播），1=私聊（仅提问者可见）
+} ai_request_t;
+
+// AI 回调线程函数：在独立线程中调用 DeepSeek API，避免阻塞通信线程
+void* ai_thr(void* arg);
 
 
 /* ==========================================================================
@@ -383,6 +403,9 @@ void* comm_thr(void* arg)
 			}
 			// ===== 处理聊天消息 =====
 			// 消息格式：CHAT:消息内容\0
+			// 支持两种 AI 交互模式：
+			//   - 公聊模式：CHAT:@AI 问题\0          → 广播提问 + 广播回复
+			//   - 私聊模式：CHAT:@AI:PRIVATE:问题\0   → 仅提问者可见回复
 			else if (strncmp(msg, "CHAT:", 5) == 0)
 			{
 				// 必须先登录才能发送聊天消息
@@ -395,16 +418,82 @@ void* comm_thr(void* arg)
 				// 提取聊天内容（跳过 "CHAT:" 前缀）
 				char *chat_msg = msg + 5;
 
-				// 构造转发消息：NEW_MSG:发送者用户名:消息内容
+				/* ===== 检测是否为 AI 提问（@AI 开头）===== */
+				if (strncmp(chat_msg, "@AI", 3) == 0)
+				{
+					char *ai_question = NULL;
+					int is_private = 0;
+
+					if (strncmp(chat_msg, "@AI:PRIVATE:", 12) == 0)
+					{
+						/* 私聊 AI 模式：仅提问者可见 AI 回复 */
+						ai_question = chat_msg + 12;
+						is_private = 1;
+					}
+					else if (chat_msg[3] == ' ' || chat_msg[3] == ':')
+					{
+						/* 公聊 AI 模式：广播提问和 AI 回复 */
+						ai_question = chat_msg + ((chat_msg[3] == ':') ? 4 : 4);
+						is_private = 0;
+					}
+
+					if (ai_question && strlen(ai_question) > 0)
+				{
+					/* 检查 API Key 是否已配置 */
+					if (strcmp(DEEPSEEK_API_KEY, "YOUR_API_KEY_HERE") == 0)
+					{
+						if (is_private)
+							send_to_client(pci->sock_conn, "AI_PRIV_RESP:🤖 AI助手:AI 功能未启用，请联系管理员配置 API Key");
+						else
+							broadcast_system("AI 功能未启用，请联系管理员配置 DeepSeek API Key", NULL);
+						continue;
+					}
+
+					/* 1. 先广播用户的提问（公聊模式下所有人可见） */
+						char forward_msg[MAX_MSG];
+						snprintf(forward_msg, sizeof(forward_msg),
+								 "NEW_MSG:%s:%s", pci->username, chat_msg);
+
+						pthread_rwlock_rdlock(&client_list_lock);
+						for (it = client_list.begin(); it != client_list.end(); ++it)
+						{
+							if (*it != pci && (*it)->logged_in)
+								send_to_client((*it)->sock_conn, forward_msg);
+						}
+						pthread_rwlock_unlock(&client_list_lock);
+
+						/* 2. 分配 AI 请求参数，创建独立线程调用 API */
+						ai_request_t *req = (ai_request_t*)calloc(1, sizeof(ai_request_t));
+						if (req)
+						{
+							strncpy(req->question, ai_question, sizeof(req->question) - 1);
+							strncpy(req->username, pci->username, sizeof(req->username) - 1);
+							req->sock_conn = pci->sock_conn;
+							req->is_private = is_private;
+
+							pthread_t ai_tid;
+							if (pthread_create(&ai_tid, NULL, ai_thr, req) == 0)
+							{
+								pthread_detach(ai_tid);
+							}
+							else
+							{
+								free(req);
+								broadcast_system("AI 服务暂时不可用", NULL);
+							}
+						}
+
+						continue; /* AI 提问已处理，跳过普通转发 */
+					}
+				}
+
+				/* ===== 普通聊天消息（非 AI 提问）===== */
 				char forward_msg[MAX_MSG];
 				snprintf(forward_msg, sizeof(forward_msg), "NEW_MSG:%s:%s", pci->username, chat_msg);
 
-				// 使用读锁遍历在线客户端列表，将消息转发给所有其他已登录用户
 				pthread_rwlock_rdlock(&client_list_lock);
 				for (it = client_list.begin(); it != client_list.end(); ++it)
 				{
-					// *it != pci: 不转发给自己（客户端本地已经显示了）
-					// (*it)->logged_in: 只转发给已登录的用户
 					if (*it != pci && (*it)->logged_in)
 					{
 						send_to_client((*it)->sock_conn, forward_msg);
@@ -419,7 +508,7 @@ void* comm_thr(void* arg)
 			{
 				if (pci->logged_in)
 				{
-					char forward_msg[MAX_MSG];
+					char forward_msg[MAX_MSG + 256];
 					snprintf(forward_msg, sizeof(forward_msg), "NEW_MSG:%s:%s", pci->username, msg);
 
 					pthread_rwlock_rdlock(&client_list_lock);
@@ -819,4 +908,88 @@ void broadcast_system(const char *msg, client_info_t *exclude)
 		}
 	}
 	pthread_rwlock_unlock(&client_list_lock);
+}
+
+
+/* ==========================================================================
+ * ai_thr() - AI 回调线程函数
+ *
+ * 在独立线程中调用 DeepSeek API，避免阻塞通信线程。
+ * API 调用通常耗时 1-5 秒，如果在通信线程中直接调用，
+ * 会导致该客户端在此期间无法接收任何消息。
+ *
+ * 流程：
+ *   1. 调用 deepseek_ask() 获取 AI 回复
+ *   2. 根据模式（公聊/私聊）发送回复：
+ *      - 公聊：广播 AI_RESP:🤖 AI助手:回复内容 给所有人
+ *      - 私聊：仅发送 AI_PRIV_RESP:🤖 AI助手:回复内容 给提问者
+ *   3. API 调用失败时发送错误提示
+ *
+ * 参数 arg: 指向 ai_request_t 的指针（堆分配，本函数负责释放）
+ * 返回值:   NULL
+ * ========================================================================== */
+void* ai_thr(void* arg)
+{
+	ai_request_t *req = (ai_request_t*)arg;
+	char ai_response[AI_RESP_MAX] = {0};
+
+	pthread_detach(pthread_self());
+
+	printf("AI 收到来自 [%s] 的问题：%s（%s模式）\n",
+		   req->username, req->question,
+		   req->is_private ? "私聊" : "公聊");
+
+	/* 调用 DeepSeek API 获取 AI 回复 */
+	int ret = deepseek_ask(DEEPSEEK_API_KEY, req->question,
+						   ai_response, sizeof(ai_response));
+
+	if (ret == 0 && strlen(ai_response) > 0)
+	{
+		/* AI 回复成功 */
+		char resp_msg[MAX_MSG + AI_RESP_MAX];
+
+		if (req->is_private)
+		{
+			/* 私聊模式：仅发送给提问者 */
+			snprintf(resp_msg, sizeof(resp_msg),
+					 "AI_PRIV_RESP:🤖 AI助手:%s", ai_response);
+			send_to_client(req->sock_conn, resp_msg);
+			printf("AI 私聊回复 [%s]：%s\n", req->username, ai_response);
+		}
+		else
+		{
+			/* 公聊模式：广播给所有在线用户 */
+			snprintf(resp_msg, sizeof(resp_msg),
+					 "AI_RESP:🤖 AI助手:%s", ai_response);
+
+			pthread_rwlock_rdlock(&client_list_lock);
+			std::list<client_info_t*>::iterator it;
+			for (it = client_list.begin(); it != client_list.end(); ++it)
+			{
+				if ((*it)->logged_in)
+				{
+					send_to_client((*it)->sock_conn, resp_msg);
+				}
+			}
+			pthread_rwlock_unlock(&client_list_lock);
+			printf("AI 公聊回复：%s\n", ai_response);
+		}
+	}
+	else
+	{
+		/* AI 调用失败 */
+		if (req->is_private)
+		{
+			send_to_client(req->sock_conn, "AI_PRIV_RESP:🤖 AI助手:抱歉，我暂时无法回答，请稍后再试");
+		}
+		else
+		{
+			broadcast_system("AI 助手暂时无法回答，请稍后再试", NULL);
+		}
+		printf("AI 回复失败\n");
+	}
+
+	/* 释放请求参数内存 */
+	free(req);
+	return NULL;
 }

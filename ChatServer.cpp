@@ -63,7 +63,7 @@
  * 请替换为你自己的 API Key（从 https://platform.deepseek.com/ 获取）
  * 安全建议：生产环境应从环境变量或配置文件读取，不要硬编码
  */
-#define DEEPSEEK_API_KEY "sk-febfdc9829ab4544b645e78efcce13b8"
+#define DEEPSEEK_API_KEY "your key"
 
 /* ========================= 客户端信息结构体 ========================= */
 // 每个连接到服务器的客户端都会分配一个此结构体，
@@ -430,10 +430,12 @@ void* comm_thr(void* arg)
 						ai_question = chat_msg + 12;
 						is_private = 1;
 					}
-					else if (chat_msg[3] == ' ' || chat_msg[3] == ':')
+					else
 					{
-						/* 公聊 AI 模式：广播提问和 AI 回复 */
-						ai_question = chat_msg + ((chat_msg[3] == ':') ? 4 : 4);
+						/* 公聊 AI 模式：跳过 @AI 后面的空格、冒号等分隔符 */
+						ai_question = chat_msg + 3;
+						while (*ai_question == ' ' || *ai_question == ':' || *ai_question == '\t')
+							ai_question++;
 						is_private = 0;
 					}
 

@@ -32,7 +32,7 @@ RegisterDialog::RegisterDialog(QTcpSocket *socket, QWidget *parent)
     ui->setupUi(this);
 
     /* 移除窗口标题栏上的 "?" 帮助按钮 */
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    setWindowFlags((windowFlags() & ~Qt::WindowContextHelpButtonHint) | Qt::WindowMinimizeButtonHint);
 
     /* 连接 readyRead 信号，接收服务器返回的注册结果 */
     connect(m_socket, &QTcpSocket::readyRead, this, &RegisterDialog::onReadyRead);

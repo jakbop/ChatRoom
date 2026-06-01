@@ -14,6 +14,7 @@
  *   - m_buffer 用于 TCP 粘包处理，以 '\0' 作为消息分隔符
  *   - 打开注册界面时需要临时断开 readyRead 信号，避免 LoginDialog 和
  *     RegisterDialog 同时响应服务器消息
+ *   - 连接失败时自动重连（m_reconnectTimer），每 3 秒重试一次
  */
 
 #ifndef LOGINDIALOG_H
@@ -21,6 +22,7 @@
 
 #include <QDialog>
 #include <QTcpSocket>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class LoginDialog; }
@@ -52,6 +54,22 @@ public:
      */
     QString getUsername() const;
 
+    /*
+     * getPassword() - 获取当前登录的密码
+     *
+     * 登录成功后由 main.cpp 调用，传递给 ChatDialog 用于断线重连后重新登录。
+     */
+    QString getPassword() const;
+
+    /*
+     * takePendingData() - 取出 Socket 缓冲区中的未处理数据
+     *
+     * 登录成功后，服务器可能在 LOGIN_OK 之后紧接着发送了 USER_LIST 等消息，
+     * 这些消息可能还在 m_buffer 中尚未处理。调用此方法取出这些数据，
+     * 传递给 ChatDialog 继续处理，避免消息丢失。
+     */
+    QByteArray takePendingData();
+
 private slots:
     /* 登录按钮点击事件：验证输入并发送登录请求 */
     void on_btnLogin_clicked();
@@ -70,10 +88,17 @@ private slots:
     void onReadyRead();
 
     /*
-     * 网络错误回调：显示错误信息并禁用操作按钮
+     * 网络错误回调：显示错误信息并启动自动重连定时器
      * 包含 m_socket 空指针检查，防止 takeSocket() 后误触发
      */
     void onError(QAbstractSocket::SocketError socketError);
+
+    /*
+     * 自动重连定时器回调：
+     * 每 3 秒触发一次，尝试重新连接服务器
+     * 连接成功后自动停止定时器
+     */
+    void onReconnectTimeout();
 
 private:
     /* 更新状态栏文本 */
@@ -88,8 +113,12 @@ private:
     Ui::LoginDialog *ui;       /* UI 界面对象指针，由 Qt Designer 生成 */
     QTcpSocket *m_socket;      /* TCP 客户端 Socket，登录成功后转移给 ChatDialog */
     QString m_username;        /* 当前登录的用户名 */
+    QString m_password;        /* 当前登录的密码（用于传递给 ChatDialog 断线重连） */
     QByteArray m_buffer;       /* 接收缓冲区，用于粘包处理（以 '\0' 分隔消息） */
+    QByteArray m_pendingData;  /* 登录成功后缓冲区中的剩余数据，传递给 ChatDialog */
     bool m_connected;          /* TCP 是否已连接到服务器 */
+    QTimer *m_reconnectTimer;  /* 自动重连定时器，连接失败时每 3 秒重试 */
+    int m_reconnectCount;      /* 重连次数计数，用于显示状态信息 */
 };
 
 #endif

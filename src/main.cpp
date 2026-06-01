@@ -43,7 +43,8 @@ int main(int argc, char *argv[])
          *   - takeSocket() 取出 Socket（所有权从 LoginDialog 转移到 ChatDialog）
          *   - getUsername() 获取登录的用户名
          */
-        ChatDialog chat(login.takeSocket(), login.getUsername());
+        ChatDialog chat(login.takeSocket(), login.getUsername(), login.getPassword(),
+                        login.takePendingData());
 
         /* 显示聊天窗口 */
         chat.show();

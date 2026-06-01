@@ -16,20 +16,20 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    main.cpp \
-    chatdialog.cpp \
-    logindialog.cpp \
-    registerdialog.cpp
+    src/main.cpp \
+    src/chatdialog.cpp \
+    src/logindialog.cpp \
+    src/registerdialog.cpp
 
 HEADERS += \
-    chatdialog.h \
-    logindialog.h \
-    registerdialog.h
+    src/chatdialog.h \
+    src/logindialog.h \
+    src/registerdialog.h
 
 FORMS += \
-    chatdialog.ui \
-    logindialog.ui \
-    registerdialog.ui
+    src/chatdialog.ui \
+    src/logindialog.ui \
+    src/registerdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -37,7 +37,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 
-win32: RC_ICONS = favicon.ico
+win32: RC_ICONS = resources/favicon.ico
 
 DISTFILES += \
-    favicon.ico
+    resources/favicon.ico

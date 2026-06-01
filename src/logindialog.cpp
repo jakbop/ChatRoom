@@ -6,6 +6,7 @@
  *   - 登录请求的发送与响应处理
  *   - 注册界面的跳转（信号断开/重连机制）
  *   - Socket 所有权的转移（takeSocket）
+ *   - 连接失败时的自动重连机制
  *
  * 通信协议：
  *   发送：LOGIN:用户名:密码\0
@@ -24,11 +25,13 @@ LoginDialog::LoginDialog(QWidget *parent)
     , ui(new Ui::LoginDialog)
     , m_socket(new QTcpSocket(this))   /* 创建 TCP Socket，本对象作为父级 */
     , m_connected(false)               /* 初始状态：未连接 */
+    , m_reconnectTimer(new QTimer(this)) /* 创建重连定时器 */
+    , m_reconnectCount(0)              /* 初始重连次数：0 */
 {
     ui->setupUi(this);
 
     /* 移除窗口标题栏上的 "?" 帮助按钮（Windows 风格） */
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    setWindowFlags((windowFlags() & ~Qt::WindowContextHelpButtonHint) | Qt::WindowMinimizeButtonHint);
 
     /* 连接未建立前，禁用登录和注册按钮，防止用户在未连接时操作 */
     ui->btnLogin->setEnabled(false);
@@ -44,6 +47,13 @@ LoginDialog::LoginDialog(QWidget *parent)
     connect(m_socket, &QTcpSocket::readyRead, this, &LoginDialog::onReadyRead);
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
             this, &LoginDialog::onError);
+
+    /*
+     * 绑定重连定时器：
+     *   每 3 秒触发一次 onReconnectTimeout()，尝试重新连接服务器
+     *   定时器在 onError() 中启动，在 onConnected() 中停止
+     */
+    connect(m_reconnectTimer, &QTimer::timeout, this, &LoginDialog::onReconnectTimeout);
 
     /* 构造时立即发起连接 */
     connectToServer();
@@ -73,6 +83,7 @@ LoginDialog::~LoginDialog()
  *      这一步极其重要！如果不断开，当 ChatDialog 也连接了同一个
  *      socket 的 readyRead 信号时，两个槽函数都会被调用，
  *      而 LoginDialog 的槽函数访问 m_socket（nullptr）会导致崩溃
+ *   4. 停止重连定时器（防止转移后仍在重连）
  *
  * 返回值：QTcpSocket 指针，调用方（ChatDialog）接管其生命周期
  * ========================================================================== */
@@ -82,6 +93,8 @@ QTcpSocket* LoginDialog::takeSocket()
     m_socket = nullptr;
     /* 断开 sock 发出的所有信号与本对象(this)的所有槽函数的连接 */
     disconnect(sock, nullptr, this, nullptr);
+    /* 停止重连定时器 */
+    m_reconnectTimer->stop();
     return sock;
 }
 
@@ -94,11 +107,23 @@ QString LoginDialog::getUsername() const
 }
 
 /* ==========================================================================
+ * getPassword() - 返回当前登录的密码
+ *
+ * 用于传递给 ChatDialog，以便断线重连后重新发送登录请求
+ * ========================================================================== */
+QString LoginDialog::getPassword() const
+{
+    return m_password;
+}
+
+/* ==========================================================================
  * on_btnLogin_clicked() - 登录按钮点击事件
  *
  * 流程：
  *   1. 获取并验证用户输入（用户名和密码不能为空）
- *   2. 保存用户名到成员变量（登录成功后需要传递给 ChatDialog）
+ *   2. 保存用户名和密码到成员变量
+ *      - 用户名：登录成功后传递给 ChatDialog
+ *      - 密码：传递给 ChatDialog 用于断线重连后重新登录
  *   3. 调用 sendLoginRequest() 发送登录协议消息
  * ========================================================================== */
 void LoginDialog::on_btnLogin_clicked()
@@ -113,6 +138,7 @@ void LoginDialog::on_btnLogin_clicked()
     }
 
     m_username = username;
+    m_password = password;
     sendLoginRequest();
 }
 
@@ -149,11 +175,17 @@ void LoginDialog::on_btnGoRegister_clicked()
 /* ==========================================================================
  * onConnected() - TCP 连接成功回调
  *
- * 连接建立后启用登录和注册按钮，清除状态栏提示
+ * 连接建立后：
+ *   1. 停止重连定时器（不再需要重连）
+ *   2. 重置重连计数
+ *   3. 启用登录和注册按钮
+ *   4. 清除状态栏提示
  * ========================================================================== */
 void LoginDialog::onConnected()
 {
     m_connected = true;
+    m_reconnectTimer->stop();     /* 连接成功，停止重连定时器 */
+    m_reconnectCount = 0;         /* 重置重连计数 */
     ui->btnLogin->setEnabled(true);
     ui->btnGoRegister->setEnabled(true);
     setStatus("");
@@ -194,16 +226,13 @@ void LoginDialog::onReadyRead()
         {
             /*
              * 登录成功！
-             * 必须在 accept() 之前断开所有信号连接。
-             * accept() 会使对话框关闭并返回，但 LoginDialog 对象
-             * 仍在栈上（main.cpp 中），如果不断开信号，后续
-             * ChatDialog 连接的 readyRead 信号触发时，
-             * LoginDialog::onReadyRead() 也会被调用，
-             * 此时 m_socket 已被 takeSocket() 置为 nullptr，
-             * 访问会导致空指针崩溃。
+             * 保存缓冲区中剩余的数据（可能包含 USER_LIST 等消息），
+             * 传递给 ChatDialog 处理，避免消息丢失。
              */
+            m_pendingData = m_buffer;
+
             disconnect(m_socket, nullptr, this, nullptr);
-            accept();  /* 关闭对话框，返回值 = QDialog::Accepted */
+            accept();
             return;
         }
         else if (response.startsWith("LOGIN_FAIL:"))
@@ -222,6 +251,8 @@ void LoginDialog::onReadyRead()
  * 当 TCP 连接失败或通信出错时触发。
  * 包含 m_socket 空指针检查：如果 takeSocket() 已将 m_socket 置为
  * nullptr，但 error 信号仍在事件队列中，此时直接返回避免崩溃。
+ *
+ * 修复：连接失败时启动自动重连定时器，而不是永久禁用按钮
  * ========================================================================== */
 void LoginDialog::onError(QAbstractSocket::SocketError socketError)
 {
@@ -230,9 +261,48 @@ void LoginDialog::onError(QAbstractSocket::SocketError socketError)
     /* 防御性检查：takeSocket() 后 m_socket 可能为 nullptr */
     if (!m_socket) return;
 
+    m_connected = false;
     setStatus("连接失败：" + m_socket->errorString());
+
+    /* 禁用按钮，等待重连成功后再启用 */
     ui->btnLogin->setEnabled(false);
     ui->btnGoRegister->setEnabled(false);
+
+    /*
+     * 启动自动重连定时器：
+     *   - 间隔 3000 毫秒（3 秒）
+     *   - 首次立即触发一次（start(0) 表示尽可能快地触发第一次）
+     *   实际上我们用 start(3000)，3 秒后第一次重试
+     */
+    if (!m_reconnectTimer->isActive())
+    {
+        m_reconnectCount = 0;
+        m_reconnectTimer->start(3000);
+        setStatus("连接失败，3秒后自动重试...");
+    }
+}
+
+/* ==========================================================================
+ * onReconnectTimeout() - 自动重连定时器回调
+ *
+ * 每 3 秒触发一次，尝试重新连接服务器。
+ * 流程：
+ *   1. 递增重连计数
+ *   2. 先断开当前 Socket 连接（如果还在连接状态）
+ *   3. 重新发起连接
+ *   4. 更新状态栏显示重连次数
+ *
+ * 连接成功后由 onConnected() 停止定时器
+ * ========================================================================== */
+void LoginDialog::onReconnectTimeout()
+{
+    if (!m_socket) return;
+
+    m_reconnectCount++;
+    setStatus(QString("正在重连服务器...（第 %1 次重试）").arg(m_reconnectCount));
+
+    m_socket->abort();
+    connectToServer();
 }
 
 /* ==========================================================================
@@ -276,4 +346,11 @@ void LoginDialog::sendLoginRequest()
     /* 禁用按钮，等待服务器响应 */
     ui->btnLogin->setEnabled(false);
     ui->btnGoRegister->setEnabled(false);
+}
+
+QByteArray LoginDialog::takePendingData()
+{
+    QByteArray data = m_pendingData;
+    m_pendingData.clear();
+    return data;
 }
